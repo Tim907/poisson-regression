@@ -220,8 +220,9 @@ class PoissonModel:
         self._check_params(params)
         xbeta = np.matmul(self.X, params)
         if np.any(xbeta <= self.epsilon):
-
-            return np.inf - np.finfo(np.float32).max
+            #return 10e8 - np.min(xbeta - self.epsilon)
+            #return np.finfo(np.float32).max - np.finfo(np.float32).eps
+            return np.inf
         xbetap = xbeta**self.p
         return np.sum(self.w * (xbetap - self.y * np.log(xbetap) + scipy.special.gammaln(self.y)))
 
@@ -230,7 +231,7 @@ class PoissonModel:
         xbeta = np.matmul(self.X, params)
         if np.any(xbeta <= self.epsilon):
             temp = np.zeros(params.size)
-            temp[0] = self.epsilon - np.min(xbeta) - np.finfo(np.float32).eps
+            temp[0] = np.min(xbeta) - self.epsilon - np.finfo(np.float32).eps
             return temp
         return np.matmul((self.w[:, np.newaxis] * self.X).transpose(), (self.p * xbeta**(self.p-1) - self.p * self.y / xbeta))
 
@@ -245,23 +246,21 @@ class PoissonModel:
             return self.gradient(params)
 
         x0 = np.zeros(self.X.shape[1])
-        #x0 = np.ones(self.X.shape[1])
+        x0 = np.ones(self.X.shape[1])
 
         def constraint(beta):
-            return self.X.dot(beta).min() + self.epsilon
-        # Constraint(beta) >= 0
+            # subtract the smallest possible value to make the equation strictly greater epsilon
+            return self.X.dot(beta).min() - self.epsilon - np.finfo(np.float32).eps
+        # this defines Constraint(beta) >= 0
         con = {'type': 'ineq', 'fun': constraint}
 
-        results = minimize(fun=fun, x0=x0, jac=jac, method="L-BFGS-B", options={'gtol': 1e-09, 'ftol': 0, 'maxls': 50, 'maxfun': 30000, 'maxiter': 30000, "iprint":1})
-        #results = minimize(fun=fun, x0=x0, jac=jac, constraints=con, options={'gtol': 1e-09, 'ftol': 1e-20, 'maxls': 50, 'maxfun': 30000, 'maxiter': 30000})
-        #results = minimize(fun=fun, x0=x0, jac=jac, method="COBYLA", constraints=con, options={'tol': 1e-20, 'maxiter': 30000})
+        results = minimize(fun=fun, x0=x0, jac=jac, method="BFGS", options={'gtol': 1e-05, 'maxiter': 30000, "disp": True})
 
 
         if not results.success:
             warnings.warn(f"The solver didn't converge! Message: {results.message}")
         if results.nit <= 3:
             warnings.warn("Very few iterations in optimization!")
-        print(constraint(results.x))
         if constraint(results.x) <= self.epsilon:
             raise ValueError(f"X * beta was not greater than epsilon! Message: xbeta:{constraint(results.x)} epsilon:{self.epsilon}")
 
