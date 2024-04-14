@@ -261,8 +261,8 @@ class PoissonModel:
             warnings.warn(f"The solver didn't converge! Message: {results.message}")
         if results.nit <= 3:
             warnings.warn("Very few iterations in optimization!")
-        if constraint(results.x) <= self.epsilon:
-            raise ValueError(f"X * beta was not greater than epsilon! Message: xbeta:{constraint(results.x)} epsilon:{self.epsilon}")
+        if self.X.dot(results.x).min() <= self.epsilon:
+            raise ValueError(f"X * beta was not greater than epsilon!")
 
         self._params = results.x
 

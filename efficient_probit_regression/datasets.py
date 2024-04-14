@@ -207,7 +207,7 @@ class Covertype(BaseDataset):
         X_continuous = df[self.features_continuous].to_numpy()
         X_continuous = scale(X_continuous)
 
-        features_binary = list(set(df.columns) - set(self.features_continuous))
+        features_binary = sorted(set(df.columns) - set(self.features_continuous))
         X_binary = df[features_binary].to_numpy()
 
         # put binary features and scaled features back together
@@ -423,7 +423,7 @@ class Example2D(BaseDataset):
 
 class Synthetic(BaseDataset):
     def __init__(self, p, variant, use_caching=False):
-        super().__init__(use_caching=use_caching)
+        super().__init__(add_intercept=False, use_caching=use_caching)
         self.p = p
         if variant != 1 and variant != 2:
             raise ValueError("Variant should be one of {1, 2}.")
@@ -436,8 +436,8 @@ class Synthetic(BaseDataset):
     def load_X_y(self):
         """ Loads data and returns X and y."""
 
-        d = 10
-        n = 100
+        d = 50
+        n = 100000
         p = self.p
 
         z_vec = np.zeros((6, d))

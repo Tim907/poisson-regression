@@ -1,5 +1,5 @@
 from efficient_probit_regression import settings
-from efficient_probit_regression.datasets import Synthetic
+from efficient_probit_regression.datasets import Synthetic, Covertype
 from efficient_probit_regression.experiments import LewisSamplingExperiment
 
 MIN_SIZE = 500
@@ -14,10 +14,13 @@ import numpy as np
 epsilon = 0
 epsilon = 0.1
 
-dataset = Synthetic(p=2, variant=1)
+#dataset = Synthetic(p=2, variant=1)
 dataset = Synthetic(p=1, variant=1)
 #dataset = Synthetic(p=2, variant=2)
 #dataset = Synthetic(p=1, variant=1)
+
+dataset = Covertype()
+dataset.p = 1
 
 experiment = LewisSamplingExperiment(
     p=dataset.p,

@@ -1,10 +1,12 @@
 import abc
+from itertools import chain
 from pathlib import Path
 from time import perf_counter
 
 import numpy as np
 import pandas as pd
 from joblib import Parallel, delayed
+from scipy.optimize import linprog
 
 from . import settings
 from .datasets import BaseDataset
@@ -103,6 +105,53 @@ class BaseExperiment(abc.ABC):
 
         rho = np.sum((np.dot(X, beta_opt)**self.p)) / np.sum(np.abs(np.dot(X, beta_opt) - y**(1/self.p))**self.p)
         _logger.info(f"Estimated Rho: {rho}")
+
+        _logger.info(f"Finding the convex hull...")
+
+        def in_hull(points, x):
+            n_points = len(points)
+            n_dim = len(x)
+            c = np.zeros(n_points)
+            lp = linprog(c, A_eq=points.T, b_eq=x, options={"disp": False})
+            return lp.success
+
+        def are_hull_points(X):
+            in_hull_logic = np.full(X.shape[0], False)
+            for i in range(X.shape[0]):
+                all_but_i = np.delete(np.arange(X.shape[0]), i)
+                unskippable = all_but_i[np.invert(in_hull_logic[all_but_i])] # remove in-hull points
+                print(i, " / ", len(unskippable))
+                in_hull_logic[i] = in_hull(X[unskippable, :], X[i, :])  # boolean result for point i
+            return in_hull_logic
+
+        def divide_and_conquer_convex_hull(X):
+            if X.shape[0] <= 5:  # Base case
+                return are_hull_points(X)
+
+            # Divide the set into two halves
+            mid = X.shape[0] // 2
+            left_half = X[:mid, :]
+            right_half = X[mid:, :]
+
+            # Recursively find convex hulls of the halves
+            left_hull = divide_and_conquer_convex_hull(left_half)
+            right_hull = divide_and_conquer_convex_hull(right_half)
+
+            # Merge the convex hulls of two halves
+            removeable_points = np.hstack((left_hull, right_hull))
+            unskippable_points = np.arange(X.shape[0])[np.invert(removeable_points)]
+            in_hull_logic = removeable_points
+            in_hull_logic[unskippable_points] = are_hull_points(X[unskippable_points, :])
+            print(X.shape, "/", len(unskippable_points) / X.shape[0], " / ", np.sum(in_hull_logic))
+            return in_hull_logic
+
+        in_hull = are_hull_points(X)
+        # Check equality of branch and bound implementation
+        print(np.array_equal(are_hull_points(X[:500, :]), divide_and_conquer_convex_hull(X[:500, :])))
+
+        in_hull = divide_and_conquer_convex_hull(X)
+
+        _logger.info(f"Convex hull calculated. In-hull are {np.sum(0)}/{X.shape[0]} points ")
 
         _logger.info("Running experiments...")    # instead of print. _logger is a little more detailed
 
