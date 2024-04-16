@@ -109,6 +109,7 @@ class BaseExperiment(abc.ABC):
         _logger.info(f"Estimated Rho: {rho}")
 
         _logger.info("Running experiments...")  # instead of print. _logger is a little more detailed
+        #model = PoissonModel(p=self.p, epsilon=0.1, X=X, y=y) # to overwrite epsilon of objective_function
 
         def job_function(cur_config):  # similar to worker
             _logger.info(f"Current experimental config: {cur_config}")
@@ -662,11 +663,18 @@ class LeverageScoreSamplingConvexHullExperiment(BaseExperiment):
 
         # calculate probabilities
         prob = leverage_scores / np.sum(leverage_scores)
-        weights = 1 / (prob * size)
-        weights[weights < 1] = 1
+        w = 1 / (prob * size)
+        w[w < 1] = 1
+        # On-hull points get mean weight
+        weights = np.ones(X.shape[0]) * np.mean(w)
+        weights[self.dataset.inHull] = w
         sample_indices = np.random.choice(leverage_scores.size, size=size - np.invert(self.dataset.inHull).sum(), replace=False, p=prob)
+        sample_logic = np.invert(self.dataset.inHull)
+        sample_logic[np.argwhere(self.dataset.inHull)[sample_indices]] = True
+        if np.sum(sample_logic) != size:
+            raise ValueError("Sample size is unequal sketch size.")
 
-        return X[sample_indices, :], y[sample_indices], weights[sample_indices]
+        return X[sample_logic, :], y[sample_logic], weights[sample_logic]
 
     def optimize(self, X, y, w):
         """

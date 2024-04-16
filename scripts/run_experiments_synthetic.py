@@ -3,20 +3,20 @@ from efficient_probit_regression.datasets import Synthetic, Covertype
 from efficient_probit_regression.experiments import LeverageScoreSamplingConvexHullExperiment
 from efficient_probit_regression.settings import get_logger
 
-MIN_SIZE = 20000
+MIN_SIZE = 15000
 MAX_SIZE = 40000
-STEP_SIZE = 500
-NUM_RUNS = 1
+STEP_SIZE = 1000
+NUM_RUNS = 51
 
 
 logger = get_logger()
 import numpy as np
 
 
-#dataset = Synthetic(n=100000, d=10, p=2, variant=1, seed=1)
-dataset = Synthetic(n=100000, d=10, p=1, variant=1, seed=1)
-#dataset = Synthetic(n=100000, d=10, p=2, variant=2, seed=1)
 #dataset = Synthetic(n=100000, d=10, p=1, variant=1, seed=1)
+#dataset = Synthetic(n=100000, d=10, p=2, variant=1, seed=1)
+#dataset = Synthetic(n=100000, d=10, p=1, variant=2, seed=1)
+dataset = Synthetic(n=100000, d=10, p=2, variant=2, seed=1)
 
 
 logger.info("Starting leverage score sampling experiment")
@@ -30,4 +30,4 @@ experiment = LeverageScoreSamplingConvexHullExperiment(
     results_filename=settings.get_results_dir_p(dataset.p)
     / f"{dataset.get_name()}_leverage_p_{dataset.p}.csv",
 )
-experiment.run(parallel=False)
+experiment.run(parallel=True)

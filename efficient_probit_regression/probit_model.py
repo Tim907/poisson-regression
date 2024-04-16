@@ -224,7 +224,7 @@ class PoissonModel:
             #return np.finfo(np.float32).max - np.finfo(np.float32).eps
             return np.inf
         xbetap = xbeta**self.p
-        return np.sum(self.w * (xbetap - self.y * np.log(xbetap) + scipy.special.gammaln(self.y)))
+        return np.sum(self.w * (xbetap - self.y * np.log(xbetap) + scipy.special.gammaln(self.y + 1)))
 
     def gradient(self, params: np.ndarray):
         self._check_params(params)
