@@ -231,7 +231,8 @@ class PoissonModel:
         xbeta = np.matmul(self.X, params)
         if np.any(xbeta <= self.epsilon):
             temp = np.zeros(params.size)
-            temp[0] = np.min(xbeta) - self.epsilon - np.finfo(np.float32).eps
+            #temp[0] = np.min(xbeta) - self.epsilon - np.finfo(np.float32).eps
+            temp[0] = -1
             return temp
         return np.matmul((self.w[:, np.newaxis] * self.X).transpose(), (self.p * xbeta**(self.p-1) - self.p * self.y / xbeta))
 
@@ -245,14 +246,11 @@ class PoissonModel:
         def jac(params):
             return self.gradient(params)
 
-        x0 = np.zeros(self.X.shape[1])
-        x0 = np.ones(self.X.shape[1])
+        if not np.all(self.X[:, 0] == 1):
+            raise ValueError(f"Intercept not at first column!")
 
-        def constraint(beta):
-            # subtract the smallest possible value to make the equation strictly greater epsilon
-            return self.X.dot(beta).min() - self.epsilon - np.finfo(np.float32).eps
-        # this defines Constraint(beta) >= 0
-        con = {'type': 'ineq', 'fun': constraint}
+        x0 = np.zeros(self.X.shape[1])
+        x0[0] = 1 # would happen after first iteration anyway
 
         results = minimize(fun=fun, x0=x0, jac=jac, method="BFGS", options={'gtol': 1e-05, 'maxiter': 30000, "disp": True})
 

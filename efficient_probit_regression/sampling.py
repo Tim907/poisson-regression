@@ -295,7 +295,7 @@ def leverage_score_sampling(
     sample_indices = _rng.choice(   # _rng (see np.random)
         X.shape[0],
         size=sample_size,
-        replace= False,       # replace = False (without replacement)
+        replace=False,       # replace = False (without replacement)
         p=p,
     )
 

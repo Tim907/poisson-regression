@@ -7,6 +7,7 @@ import numpy as np
 import pandas as pd
 from joblib import Parallel, delayed
 from scipy.optimize import linprog
+from scipy.stats import expon
 
 from . import settings
 from .datasets import BaseDataset
@@ -29,14 +30,14 @@ _rng = np.random.default_rng()
 
 class BaseExperiment(abc.ABC):
     def __init__(
-        self,
-        p: int,
-        num_runs: int,
-        min_size: int,
-        max_size: int,
-        step_size: int,
-        dataset: BaseDataset,
-        results_filename: str,
+            self,
+            p: int,
+            num_runs: int,
+            min_size: int,
+            max_size: int,
+            step_size: int,
+            dataset: BaseDataset,
+            results_filename: str,
     ):
         self.num_runs = num_runs
         self.min_size = min_size
@@ -60,9 +61,9 @@ class BaseExperiment(abc.ABC):
         """
         grid = []
         for size in np.arange(
-            start=self.min_size,
-            stop=self.max_size + self.step_size,
-            step=self.step_size,
+                start=self.min_size,
+                stop=self.max_size + self.step_size,
+                step=self.step_size,
         ):
             for run in range(1, self.num_runs + 1):
                 grid.append({"run": run, "size": size})
@@ -97,65 +98,19 @@ class BaseExperiment(abc.ABC):
         model = PoissonModel(p=self.p, epsilon=0, X=X, y=y)
         beta_opt = self.dataset.get_beta_opt(p=self.p)
 
-        def objective_function(beta):    # negative log likelihood
+        def objective_function(beta):  # negative log likelihood
             return model.loss(beta)
 
         f_opt = objective_function(beta_opt)  # f(beta_opt)
         _logger.info(f"Optimal objective function: {f_opt}")
 
-        rho = np.sum((np.dot(X, beta_opt)**self.p)) / np.sum(np.abs(np.dot(X, beta_opt) - y**(1/self.p))**self.p)
+        rho = np.sum((np.dot(X, beta_opt) ** self.p)) / np.sum(
+            np.abs(np.dot(X, beta_opt) - y ** (1 / self.p)) ** self.p)
         _logger.info(f"Estimated Rho: {rho}")
 
-        _logger.info(f"Finding the convex hull...")
+        _logger.info("Running experiments...")  # instead of print. _logger is a little more detailed
 
-        def in_hull(points, x):
-            n_points = len(points)
-            n_dim = len(x)
-            c = np.zeros(n_points)
-            lp = linprog(c, A_eq=points.T, b_eq=x, options={"disp": False})
-            return lp.success
-
-        def are_hull_points(X):
-            in_hull_logic = np.full(X.shape[0], False)
-            for i in range(X.shape[0]):
-                all_but_i = np.delete(np.arange(X.shape[0]), i)
-                unskippable = all_but_i[np.invert(in_hull_logic[all_but_i])] # remove in-hull points
-                print(i, " / ", len(unskippable))
-                in_hull_logic[i] = in_hull(X[unskippable, :], X[i, :])  # boolean result for point i
-            return in_hull_logic
-
-        def divide_and_conquer_convex_hull(X):
-            if X.shape[0] <= 5:  # Base case
-                return are_hull_points(X)
-
-            # Divide the set into two halves
-            mid = X.shape[0] // 2
-            left_half = X[:mid, :]
-            right_half = X[mid:, :]
-
-            # Recursively find convex hulls of the halves
-            left_hull = divide_and_conquer_convex_hull(left_half)
-            right_hull = divide_and_conquer_convex_hull(right_half)
-
-            # Merge the convex hulls of two halves
-            removeable_points = np.hstack((left_hull, right_hull))
-            unskippable_points = np.arange(X.shape[0])[np.invert(removeable_points)]
-            in_hull_logic = removeable_points
-            in_hull_logic[unskippable_points] = are_hull_points(X[unskippable_points, :])
-            print(X.shape, "/", len(unskippable_points) / X.shape[0], " / ", np.sum(in_hull_logic))
-            return in_hull_logic
-
-        in_hull = are_hull_points(X)
-        # Check equality of branch and bound implementation
-        print(np.array_equal(are_hull_points(X[:500, :]), divide_and_conquer_convex_hull(X[:500, :])))
-
-        in_hull = divide_and_conquer_convex_hull(X)
-
-        _logger.info(f"Convex hull calculated. In-hull are {np.sum(0)}/{X.shape[0]} points ")
-
-        _logger.info("Running experiments...")    # instead of print. _logger is a little more detailed
-
-        def job_function(cur_config):      # similar to worker
+        def job_function(cur_config):  # similar to worker
             _logger.info(f"Current experimental config: {cur_config}")
 
             start_time = perf_counter()
@@ -177,7 +132,7 @@ class BaseExperiment(abc.ABC):
                 "total_time_s": total_time,
             }
 
-        if parallel:     # parallelization
+        if parallel:  # parallelization
             results = Parallel(n_jobs=n_jobs)(
                 delayed(job_function)(cur_config)
                 for cur_config in self.get_config_grid()
@@ -205,14 +160,14 @@ class BaseExperiment(abc.ABC):
 
 class UniformSamplingExperiment(BaseExperiment):
     def __init__(
-        self,
-        p,
-        num_runs,
-        min_size,
-        max_size,
-        step_size,
-        dataset: BaseDataset,
-        results_filename,
+            self,
+            p,
+            num_runs,
+            min_size,
+            max_size,
+            step_size,
+            dataset: BaseDataset,
+            results_filename,
     ):
         super().__init__(
             p=p,
@@ -238,15 +193,15 @@ class UniformSamplingExperiment(BaseExperiment):
 
 class LewisSamplingExperiment(BaseExperiment):
     def __init__(
-        self,
-        p,
-        num_runs,
-        min_size,
-        max_size,
-        step_size,
-        dataset: BaseDataset,
-        results_filename,
-        fast_approx=True,
+            self,
+            p,
+            num_runs,
+            min_size,
+            max_size,
+            step_size,
+            dataset: BaseDataset,
+            results_filename,
+            fast_approx=True,
     ):
         super().__init__(
             p=p,
@@ -278,14 +233,14 @@ class LewisSamplingExperiment(BaseExperiment):
 
 class SGDExperiment(BaseExperiment):
     def __init__(
-        self,
-        p,
-        num_runs,
-        min_size,
-        max_size,
-        step_size,
-        dataset: BaseDataset,
-        results_filename,
+            self,
+            p,
+            num_runs,
+            min_size,
+            max_size,
+            step_size,
+            dataset: BaseDataset,
+            results_filename,
     ):
         super().__init__(
             p=p,
@@ -321,18 +276,18 @@ class SGDExperiment(BaseExperiment):
 
 class LeverageScoreSamplingExperiment(BaseExperiment):
     def __init__(
-        self,
-        p,
-        num_runs,
-        min_size,
-        max_size,
-        step_size,
-        dataset: BaseDataset,
-        results_filename,
-        only_compute_once=True,
-        online=False,
-        round_up=True,
-        fast_approx=False,
+            self,
+            p,
+            num_runs,
+            min_size,
+            max_size,
+            step_size,
+            dataset: BaseDataset,
+            results_filename,
+            only_compute_once=True,
+            online=False,
+            round_up=True,
+            fast_approx=False,
     ):
         super().__init__(
             p=p,
@@ -393,6 +348,7 @@ class LeverageScoreSamplingExperiment(BaseExperiment):
 
 class LogitSamplingExperiment(BaseExperiment):
     """ Returns reduced X, y and weights."""
+
     def get_reduced_X_y_weights(self, config):
         X, y = self.dataset.get_X(), self.dataset.get_y()
         size = config["size"]
@@ -408,14 +364,14 @@ class LogitSamplingExperiment(BaseExperiment):
 
 class OnlineRidgeLeverageScoreSamplingExperiment(BaseExperiment):
     def __init__(
-        self,
-        p,
-        num_runs,
-        min_size,
-        max_size,
-        step_size,
-        dataset: BaseDataset,
-        results_filename,
+            self,
+            p,
+            num_runs,
+            min_size,
+            max_size,
+            step_size,
+            dataset: BaseDataset,
+            results_filename,
     ):
         super().__init__(
             p=p,
@@ -444,17 +400,17 @@ class OnlineRidgeLeverageScoreSamplingExperiment(BaseExperiment):
 
 class BaseExperimentBayes(abc.ABC):
     def __init__(
-        self,
-        dataset: BaseDataset,
-        num_runs: int,
-        min_size: int,
-        max_size: int,
-        step_size: int,
-        prior_mean: np.ndarray,
-        prior_cov: np.ndarray,
-        samples_per_chain: int,
-        num_chains: int,
-        burn_in: int,
+            self,
+            dataset: BaseDataset,
+            num_runs: int,
+            min_size: int,
+            max_size: int,
+            step_size: int,
+            prior_mean: np.ndarray,
+            prior_cov: np.ndarray,
+            samples_per_chain: int,
+            num_chains: int,
+            burn_in: int,
     ):
         self.dataset = dataset
         self.num_runs = num_runs
@@ -505,7 +461,7 @@ class BaseExperimentBayes(abc.ABC):
             # create a sample for each size
             samples = []
             for cur_size in range(
-                self.min_size, self.max_size + self.step_size, self.step_size
+                    self.min_size, self.max_size + self.step_size, self.step_size
             ):
                 _logger.info(
                     f"METHOD: {self.get_method_name()} - RUN: {cur_run} - SIZE: {cur_size}"  # noqa
@@ -589,7 +545,6 @@ class LeverageScoreSamplingExperimentBayes(BaseExperimentBayes):
         return "leverage"
 
     def get_reduced_X_y_probabilities(self, size):
-
         X_reduced, y_reduced, weights = leverage_score_sampling(
             X=self.dataset.get_X(),
             y=self.dataset.get_y(),
@@ -631,3 +586,102 @@ class OnlineLeverageScoreSamplingExperimentBayes(BaseExperimentBayes):
         probabilities = 1 / (weights * size)
 
         return X_reduced, y_reduced, probabilities
+
+
+class LeverageScoreSamplingConvexHullExperiment(BaseExperiment):
+    """
+    https://github.com/chr-peters/efficient-probit-regression/blob/cf5da81415f0b866a5971f38e92fa3d32e752c96/efficient_probit_regression/sampling.py#L243
+    """
+
+    def fast_QR(self, X, p=1):
+        """
+        Returns Q of a fast QR decomposition of X.
+        """
+        n, d = X.shape
+
+        if p <= 2:
+            sketch_size = d ** 2
+        else:
+            sketch_size = np.maximum(d ** 2, int(np.power(n, 1 - 2 / p)))
+
+        f = np.random.randint(sketch_size, size=n)
+        g = np.random.randint(2, size=n) * 2 - 1
+        if p != 2:
+            lamb = expon.rvs(size=n)
+
+        # init the sketch
+        X_sketch = np.zeros((sketch_size, d))
+        if p == 2:
+            for i in range(n):
+                X_sketch[f[i]] += g[i] * X[i]
+        else:
+            for i in range(n):
+                X_sketch[f[i]] += g[i] / np.power(lamb[i], 1 / p) * X[i]  # exponential distributed random variable
+
+        R = np.linalg.qr(X_sketch, mode="r")
+        R_inv = np.linalg.inv(R)
+
+        if p == 2:
+            k = 20
+            g = np.random.normal(loc=0, scale=1 / np.sqrt(k), size=(R_inv.shape[1], k))
+            r = np.dot(R_inv, g)
+            Q = np.dot(X, r)
+        else:
+            Q = np.dot(X, R_inv)
+        return Q
+
+    def compute_leverage_scores(self, X: np.ndarray, p, fast_approx):
+        """
+            Computes leverage scores.
+        """
+        if not len(X.shape) == 2:
+            raise ValueError("X must be 2D!")
+
+        if not fast_approx:  # boolean, fast or usual Q-R-decomposition
+            Q, *_ = np.linalg.qr(X)
+        else:
+            Q = self.fast_QR(X, p=p)
+
+        leverage_scores = np.power(np.linalg.norm(Q, axis=1, ord=p), p)
+
+        return leverage_scores
+
+    def get_reduced_X_y_weights(self, config):
+        """ Returns reduced X, y and weights."""
+        X, y = self.dataset.get_X(), self.dataset.get_y()
+        size = config["size"]
+
+        if size < np.invert(self.dataset.inHull).sum():
+            raise ValueError("There are more points on the convex hull than sketch size.")
+
+        leverage_scores = self.compute_leverage_scores(X[self.dataset.inHull, :], p=self.p, fast_approx=True)
+
+        leverage_scores = leverage_scores / np.sum(leverage_scores)
+        # augmented
+        leverage_scores = leverage_scores + 0.2 / leverage_scores.size
+
+        # calculate probabilities
+        prob = leverage_scores / np.sum(leverage_scores)
+        weights = 1 / (prob * size)
+        weights[weights < 1] = 1
+        sample_indices = np.random.choice(leverage_scores.size, size=size - np.invert(self.dataset.inHull).sum(), replace=False, p=prob)
+
+        return X[sample_indices, :], y[sample_indices], weights[sample_indices]
+
+    def optimize(self, X, y, w):
+        """
+        Optimize the Probit regression problem given by X, y and w.
+
+        :param X: Data matrix.
+        :param y: Label vector.
+        :param w: Weights.
+        """
+        try:
+            print("Epsilon=0.1")
+            model = PoissonModel(p=self.p, X=X, y=y, w=w, epsilon=0.1)
+            model.fit()
+            beta_opt = model.get_params()
+        except ValueError:
+            # this is executed if y only contains 1 or -1 label
+            beta_opt = None
+        return beta_opt

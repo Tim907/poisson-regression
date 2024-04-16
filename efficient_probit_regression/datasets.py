@@ -7,6 +7,7 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
+from scipy.optimize import linprog
 from sklearn.datasets import (
     fetch_covtype,
     fetch_kddcup99,
@@ -26,7 +27,7 @@ _rng = np.random.default_rng()
 
 def add_intercept(X):
     """ Adds intercept."""
-    return np.append(X, np.ones(shape=(X.shape[0], 1)), axis=1)
+    return np.append(np.ones(shape=(X.shape[0], 1)), X, axis=1)
 
 
 class BaseDataset(abc.ABC):
@@ -43,6 +44,7 @@ class BaseDataset(abc.ABC):
         self.y = None
         self.beta_opt_dir = {}
         self.add_intercept = add_intercept
+        self.inHull = None
 
     @abc.abstractmethod
     def load_X_y(self):
@@ -422,23 +424,43 @@ class Example2D(BaseDataset):
 
 
 class Synthetic(BaseDataset):
-    def __init__(self, p, variant, use_caching=False):
+    def __init__(self, n, d, p, variant, seed, use_caching=False):
         super().__init__(add_intercept=False, use_caching=use_caching)
+        self.n = n
+        self.d = d
         self.p = p
+        self.seed = seed
         if variant != 1 and variant != 2:
             raise ValueError("Variant should be one of {1, 2}.")
         self.variant = variant
 
     def get_name(self):
         """" Returns name of data set."""
-        return "synthetic"
+        return f"synthetic_n{self.n}_d{self.d}_p{self.p}_variant{self.variant}_seed{self.seed}"
+
+    def get_raw_path(self):
+        return self.cache_dir / f"{self.get_name()}.csv"
 
     def load_X_y(self):
         """ Loads data and returns X and y."""
 
-        d = 50
-        n = 100000
+        X_path = self.cache_dir / f"{self.get_name()}_X.npy"
+        y_path = self.cache_dir / f"{self.get_name()}_y.npy"
+        inHull_path = self.cache_dir / f"{self.get_name()}_inHull.npy"
+        if X_path.exists() and y_path.exists() and inHull_path.exists():
+            _logger.info(
+                f"Loading cached versions of X, y and inHull found at {X_path} and {y_path} and {inHull_path}..."
+            )
+            X = np.load(X_path)
+            y = np.load(y_path)
+            self.inHull = np.load(inHull_path)
+            _logger.info("Done.")
+            return X, y
+
+        n = self.n
+        d = self.d
         p = self.p
+        np.random.seed(self.seed)
 
         z_vec = np.zeros((6, d))
         for i in range(6):
@@ -448,8 +470,8 @@ class Synthetic(BaseDataset):
             mat = np.vstack((mat, z_vec[0]))
         for i in range(10):
             mat = np.vstack((mat, z_vec[1]))
-        while mat.shape[0] < n:
-            mat = np.vstack((mat, z_vec[2:6, :]))
+        # Fill up z_[3-6] till n reached
+        mat = np.vstack((mat, z_vec[np.tile(np.arange(start=2, stop=6), n // 4), :]))
         mat = mat[0:n, :]
 
         delta = 0.1
@@ -470,4 +492,55 @@ class Synthetic(BaseDataset):
             y = np.ceil(lambdas)
             y[logic] = np.floor(lambdas)[logic]
 
+        np.save(X_path, X)
+        np.save(y_path, y)
+        self.inHull = self.find_convex_hull(X)
+        np.save(inHull_path, self.inHull)
+
         return X, y
+
+    def find_convex_hull(self, X):
+        _logger.info(f"Finding the convex hull...")
+
+        def in_hull(points, x):
+            c = np.zeros(len(points))
+            lp = linprog(c, A_eq=points.T, b_eq=x, options={"disp": False})
+            return lp.success
+
+        def are_hull_points(X):
+            in_hull_logic = np.full(X.shape[0], False)
+            for i in range(X.shape[0]):
+                all_but_i = np.delete(np.arange(X.shape[0]), i)
+                unskippable = all_but_i[np.invert(in_hull_logic[all_but_i])]  # remove in-hull points
+                print(i, " / ", len(unskippable))
+                in_hull_logic[i] = in_hull(X[unskippable, :], X[i, :])  # boolean result for point i
+            return in_hull_logic
+
+        def divide_and_conquer_convex_hull(X):
+            if X.shape[0] <= 5:  # Base case
+                return are_hull_points(X)
+
+            # Divide the set into two halves
+            mid = X.shape[0] // 2
+            left_half = X[:mid, :]
+            right_half = X[mid:, :]
+
+            # Recursively find convex hulls of the halves
+            left_hull = divide_and_conquer_convex_hull(left_half)
+            right_hull = divide_and_conquer_convex_hull(right_half)
+
+            # Merge the convex hulls of two halves
+            removeable_points = np.hstack((left_hull, right_hull))
+            unskippable_points = np.arange(X.shape[0])[np.invert(removeable_points)]
+            in_hull_logic = removeable_points
+            in_hull_logic[unskippable_points] = are_hull_points(X[unskippable_points, :])
+            print(X.shape, "/", len(unskippable_points) / X.shape[0], " / ", np.sum(in_hull_logic))
+            return in_hull_logic
+
+        # Check equality of branch and bound implementation
+        # print(np.array_equal(are_hull_points(X[:10000, :]), divide_and_conquer_convex_hull(X[:10000, :])))
+        # divide-and-conquer is about twice as slow
+
+        inHull = are_hull_points(X)
+        _logger.info(f"Convex hull calculated. In-hull are {np.sum(inHull)}/{X.shape[0]} points")
+        return inHull
