@@ -1,5 +1,5 @@
 from efficient_probit_regression import settings
-from efficient_probit_regression.datasets import Synthetic, Covertype
+from efficient_probit_regression.datasets import Synthetic, Covertype, OnlineRetail
 from efficient_probit_regression.experiments import LeverageScoreSamplingConvexHullExperiment
 from efficient_probit_regression.settings import get_logger
 
@@ -17,6 +17,8 @@ import numpy as np
 #dataset = Synthetic(n=100000, d=10, p=2, variant=1, seed=1)
 #dataset = Synthetic(n=100000, d=10, p=1, variant=2, seed=1)
 dataset = Synthetic(n=100000, d=10, p=2, variant=2, seed=1)
+#dataset = OnlineRetail()
+#dataset.p = 1
 
 
 logger.info("Starting leverage score sampling experiment")

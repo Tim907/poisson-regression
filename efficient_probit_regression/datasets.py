@@ -3,6 +3,7 @@ import bz2
 import io
 import ssl
 import urllib.request
+import zipfile
 from pathlib import Path
 
 import numpy as np
@@ -484,7 +485,7 @@ class Synthetic(BaseDataset):
 
         # Synthetic dataset 1
         lambdas = (np.matmul(X, beta) ** p).reshape(n)
-        y = np.random.exponential(lambdas)
+        y = np.random.poisson(lambdas)
 
         # Synthetic dataset 2
         if self.variant == 2:
@@ -544,3 +545,78 @@ class Synthetic(BaseDataset):
         inHull = are_hull_points(X)
         _logger.info(f"Convex hull calculated. In-hull are {np.sum(inHull)}/{X.shape[0]} points")
         return inHull
+
+
+
+class OnlineRetail(BaseDataset):
+    """
+    Dataset Source:
+    https://archive.ics.uci.edu/dataset/352/online+retail
+    """
+
+    dataset_url = "https://archive.ics.uci.edu/static/public/352/online+retail.zip"  # noqa: E501
+
+    def __init__(self, use_caching=True):
+        super().__init__(use_caching=use_caching)
+
+    def get_name(self):
+        """ Returns name of data set."""
+        return "onlineRetail"
+
+
+    def get_raw_path(self):
+        return self.cache_dir / f"{self.get_name()}.csv"
+
+    def download_dataset(self):
+        _logger.info(f"Downloading data from {self.dataset_url}")
+
+        context = ssl._create_unverified_context()
+        with urllib.request.urlopen(self.dataset_url, context=context) as f:
+            contents = f.read()
+
+        _logger.info("Download completed.")
+        _logger.info("Extracting data...")
+
+        with zipfile.ZipFile(io.BytesIO(contents), 'r') as z:
+            # Assuming there's only one file in the zip archive and it's an Excel file
+            file_name = z.namelist()[0]
+            with z.open(file_name) as excel_file:
+                # Read Excel file using pandas
+                df = pd.read_excel(excel_file)
+
+        df["LABEL"] = df["Quantity"]
+        df = df[["InvoiceNo", "StockCode", "UnitPrice", "CustomerID", "Country", "LABEL"]]
+
+        _logger.info(f"Writing .csv file to {self.get_raw_path()}")
+
+        df.to_csv(self.get_raw_path(), index=False)
+
+    def load_X_y(self):
+        """ Loads data and returns X and y."""
+        if not self.get_raw_path().exists():
+            _logger.info(f"Couldn't find dataset at location {self.get_raw_path()}")
+            self.download_dataset()
+
+        df = pd.read_csv(self.get_raw_path())
+
+        _logger.info("Preprocessing the data...")
+
+        y = df["LABEL"].to_numpy()
+        df = df.drop("LABEL", axis="columns")
+
+        # drop all columns that only have constant values
+        # drop all columns that contain only one non-zero entry
+        for cur_column_name in df.columns:
+            cur_column = df[cur_column_name]
+            cur_column_sum = cur_column.astype(bool).sum()
+            unique_values = cur_column.unique()
+            if len(unique_values) <= 1:
+                df = df.drop(cur_column_name, axis="columns")
+
+        X = df.to_numpy()
+
+        # scale the features to mean 0 and variance 1
+        X = scale(X)
+
+        return X, y
+
