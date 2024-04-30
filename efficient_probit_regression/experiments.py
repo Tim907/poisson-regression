@@ -191,6 +191,24 @@ class UniformSamplingExperiment(BaseExperiment):
 
         return X_reduced, y_reduced, weights
 
+    def optimize(self, X, y, w):
+        """
+        Optimize the regression problem given by X, y and w.
+
+        :param X: Data matrix.
+        :param y: Label vector.
+        :param w: Weights.
+        """
+        try:
+            print("Epsilon=0.1")
+            model = PoissonModel(p=self.p, X=X, y=y, w=w, epsilon=0.1)
+            model.fit()
+            beta_opt = model.get_params()
+        except ValueError:
+            # this is executed if y only contains 1 or -1 label
+            beta_opt = None
+        return beta_opt
+
 
 class LewisSamplingExperiment(BaseExperiment):
     def __init__(
@@ -655,7 +673,8 @@ class LeverageScoreSamplingConvexHullExperiment(BaseExperiment):
         if size < np.invert(self.dataset.inHull).sum():
             raise ValueError("There are more points on the convex hull than sketch size.")
 
-        leverage_scores = self.compute_leverage_scores(X[self.dataset.inHull, :], p=self.p, fast_approx=True)
+        leverage_scores = self.compute_leverage_scores(X, p=self.p, fast_approx=True)
+        leverage_scores = leverage_scores[self.dataset.inHull]
 
         leverage_scores = leverage_scores / np.sum(leverage_scores)
         # augmented
@@ -678,7 +697,7 @@ class LeverageScoreSamplingConvexHullExperiment(BaseExperiment):
 
     def optimize(self, X, y, w):
         """
-        Optimize the Probit regression problem given by X, y and w.
+        Optimize the regression problem given by X, y and w.
 
         :param X: Data matrix.
         :param y: Label vector.

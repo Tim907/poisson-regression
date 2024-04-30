@@ -32,8 +32,9 @@ def add_intercept(X):
 
 
 class BaseDataset(abc.ABC):
-    def __init__(self, add_intercept=True, use_caching=True, cache_dir=None):
+    def __init__(self, p, add_intercept=True, use_caching=True, cache_dir=None):
         self.use_caching = use_caching
+        self.p = p
         if cache_dir is None:
             cache_dir = settings.DATA_DIR
         self.cache_dir = cache_dir
@@ -56,33 +57,32 @@ class BaseDataset(abc.ABC):
         pass
 
     def _load_X_y_cached(self):
-        if not self.use_caching:
-            _logger.info("Loading X and y...")
-            X, y = self.load_X_y()
-            if self.add_intercept:
-                X = add_intercept(X)
-            _logger.info("Done.")
-            return X, y
 
         X_path = self.get_binary_path_X()
         y_path = self.get_binary_path_y()
-        if X_path.exists() and y_path.exists():
-            _logger.info(
-                f"Loading cached versions of X and y found at {X_path} and {y_path}..."
-            )
-            X = np.load(X_path)
-            if self.add_intercept:
-                X = add_intercept(X)
-            y = np.load(y_path)
-            _logger.info("Done.")
-            return X, y
+        inHull_path = self.cache_dir / f"{self.get_name()}_inHull.npy"
+
+        if self.use_caching:
+            if X_path.exists() and y_path.exists() and inHull_path.exists():
+                _logger.info(
+                    f"Loading cached versions of X and y found at {X_path} and {y_path} and {inHull_path}..."
+                )
+                X = np.load(X_path)
+                if self.add_intercept:
+                    X = add_intercept(X)
+                y = np.load(y_path)
+                self.inHull = np.load(inHull_path)
+                _logger.info("Done.")
+                return X, y
 
         _logger.info("Loading X and y...")
         X, y = self.load_X_y()
         _logger.info("Done.")
         np.save(X_path, X)
         np.save(y_path, y)
-        _logger.info(f"Saved X and y at {X_path} and {y_path}.")
+        self.inHull = find_convex_hull(X)
+        np.save(inHull_path, self.inHull)
+        _logger.info(f"Saved X, y and inHull at {X_path}, {y_path} and {inHull_path}.")
 
         if self.add_intercept:
             X = add_intercept(X)
@@ -424,12 +424,62 @@ class Example2D(BaseDataset):
         return X, y
 
 
+
+def find_convex_hull(X):
+    """
+    Returns a boolean vector describing which rows of X are on the convex hull of X.
+    """
+    _logger.info(f"Finding the convex hull...")
+
+    def in_hull(points, x):
+        c = np.zeros(len(points))
+        lp = linprog(c, A_eq=points.T, b_eq=x, options={"disp": False})
+        return lp.success
+
+    def are_hull_points(X):
+        in_hull_logic = np.full(X.shape[0], False)
+        for i in range(X.shape[0]):
+            all_but_i = np.delete(np.arange(X.shape[0]), i)
+            unskippable = all_but_i[np.invert(in_hull_logic[all_but_i])]  # remove in-hull points
+            print(i, "/", X.shape[0], " | To Consider: ", len(unskippable))
+            in_hull_logic[i] = in_hull(X[unskippable, :], X[i, :])  # boolean result for point i
+        return in_hull_logic
+
+    def divide_and_conquer_convex_hull(X):
+        if X.shape[0] <= 5:  # Base case
+            return are_hull_points(X)
+
+        # Divide the set into two halves
+        mid = X.shape[0] // 2
+        left_half = X[:mid, :]
+        right_half = X[mid:, :]
+
+        # Recursively find convex hulls of the halves
+        left_hull = divide_and_conquer_convex_hull(left_half)
+        right_hull = divide_and_conquer_convex_hull(right_half)
+
+        # Merge the convex hulls of two halves
+        removeable_points = np.hstack((left_hull, right_hull))
+        unskippable_points = np.arange(X.shape[0])[np.invert(removeable_points)]
+        in_hull_logic = removeable_points
+        in_hull_logic[unskippable_points] = are_hull_points(X[unskippable_points, :])
+        print(X.shape, "/", len(unskippable_points) / X.shape[0], " / ", np.sum(in_hull_logic))
+        return in_hull_logic
+
+    # Check equality of branch and bound implementation
+    # print(np.array_equal(are_hull_points(X[:10000, :]), divide_and_conquer_convex_hull(X[:10000, :])))
+    # divide-and-conquer is about twice as slow
+
+    inHull = are_hull_points(X)
+    _logger.info(f"Convex hull calculated. In-hull are {np.sum(inHull)}/{X.shape[0]} points")
+    return inHull
+
+
 class Synthetic(BaseDataset):
-    def __init__(self, n, d, p, variant, seed, use_caching=False):
-        super().__init__(add_intercept=False, use_caching=use_caching)
+    def __init__(self, n, d, p, variant, seed, use_caching=True):
+        super().__init__(p=p, add_intercept=False, use_caching=use_caching)
         self.n = n
         self.d = d
-        self.p = p
         self.seed = seed
         if variant != 1 and variant != 2:
             raise ValueError("Variant should be one of {1, 2}.")
@@ -495,56 +545,11 @@ class Synthetic(BaseDataset):
 
         np.save(X_path, X)
         np.save(y_path, y)
-        self.inHull = self.find_convex_hull(X)
+        self.inHull = find_convex_hull(X)
         np.save(inHull_path, self.inHull)
 
         return X, y
 
-    def find_convex_hull(self, X):
-        _logger.info(f"Finding the convex hull...")
-
-        def in_hull(points, x):
-            c = np.zeros(len(points))
-            lp = linprog(c, A_eq=points.T, b_eq=x, options={"disp": False})
-            return lp.success
-
-        def are_hull_points(X):
-            in_hull_logic = np.full(X.shape[0], False)
-            for i in range(X.shape[0]):
-                all_but_i = np.delete(np.arange(X.shape[0]), i)
-                unskippable = all_but_i[np.invert(in_hull_logic[all_but_i])]  # remove in-hull points
-                print(i, " / ", len(unskippable))
-                in_hull_logic[i] = in_hull(X[unskippable, :], X[i, :])  # boolean result for point i
-            return in_hull_logic
-
-        def divide_and_conquer_convex_hull(X):
-            if X.shape[0] <= 5:  # Base case
-                return are_hull_points(X)
-
-            # Divide the set into two halves
-            mid = X.shape[0] // 2
-            left_half = X[:mid, :]
-            right_half = X[mid:, :]
-
-            # Recursively find convex hulls of the halves
-            left_hull = divide_and_conquer_convex_hull(left_half)
-            right_hull = divide_and_conquer_convex_hull(right_half)
-
-            # Merge the convex hulls of two halves
-            removeable_points = np.hstack((left_hull, right_hull))
-            unskippable_points = np.arange(X.shape[0])[np.invert(removeable_points)]
-            in_hull_logic = removeable_points
-            in_hull_logic[unskippable_points] = are_hull_points(X[unskippable_points, :])
-            print(X.shape, "/", len(unskippable_points) / X.shape[0], " / ", np.sum(in_hull_logic))
-            return in_hull_logic
-
-        # Check equality of branch and bound implementation
-        # print(np.array_equal(are_hull_points(X[:10000, :]), divide_and_conquer_convex_hull(X[:10000, :])))
-        # divide-and-conquer is about twice as slow
-
-        inHull = are_hull_points(X)
-        _logger.info(f"Convex hull calculated. In-hull are {np.sum(inHull)}/{X.shape[0]} points")
-        return inHull
 
 
 
@@ -620,3 +625,85 @@ class OnlineRetail(BaseDataset):
 
         return X, y
 
+
+
+class Diabetes(BaseDataset):
+    """
+    Dataset Source:
+    https://archive.ics.uci.edu/dataset/352/online+retail
+    """
+
+    dataset_url = "https://archive.ics.uci.edu/static/public/296/diabetes+130-us+hospitals+for+years+1999-2008.zip"  # noqa: E501
+
+    def __init__(self, p, use_caching=True):
+        super().__init__(p=p, use_caching=use_caching)
+
+    def get_name(self):
+        """ Returns name of data set."""
+        return "diabetes"
+
+
+    def get_raw_path(self):
+        return self.cache_dir / f"{self.get_name()}.csv"
+
+    def download_dataset(self):
+        _logger.info(f"Downloading data from {self.dataset_url}")
+
+        context = ssl._create_unverified_context()
+        with urllib.request.urlopen(self.dataset_url, context=context) as f:
+            contents = f.read()
+
+        _logger.info("Download completed.")
+        _logger.info("Extracting data...")
+
+        with zipfile.ZipFile(io.BytesIO(contents), 'r') as z:
+            # Assuming there's only one file in the zip archive and it's an Excel file
+            file_name = z.namelist()[0]
+            with z.open(file_name) as csv_file:
+                df = pd.read_csv(csv_file)
+
+        df["LABEL"] = df["num_medications"] # response poisson distributed variable
+        df = df[df["gender"].isin(["Male", "Female"])] # Remove the 3 observations with "Unknown/Invalid" gender
+        df["IsFemale"] = df["gender"] == "Female"
+        df["change"] = df["change"] == "Ch"
+        df["diabetesMed"] = df["diabetesMed"] == "Yes"
+        df["admission.Emergency"] = df["admission_type_id"] == 1
+        df["admission.Urgent"] = df["admission_type_id"] == 2
+        df["admission.Elective"] = df["admission_type_id"] == 3
+        df = df[["LABEL", "IsFemale", "time_in_hospital", "num_lab_procedures", "num_procedures", "number_outpatient",
+                 "number_emergency", "number_inpatient", "number_diagnoses", "change", "diabetesMed",
+                 "admission.Emergency", "admission.Urgent", "admission.Elective"]]
+
+        _logger.info(f"Writing .csv file to {self.get_raw_path()}")
+
+        df.to_csv(self.get_raw_path(), index=False)
+
+    def load_X_y(self):
+        """ Loads data and returns X and y."""
+        if not self.get_raw_path().exists():
+            _logger.info(f"Couldn't find dataset at location {self.get_raw_path()}")
+            self.download_dataset()
+
+        df = pd.read_csv(self.get_raw_path())
+
+        _logger.info("Preprocessing the data...")
+
+        y = df["LABEL"].to_numpy()
+        df = df.drop("LABEL", axis="columns")
+
+        # drop all columns that only have constant values
+        # drop all columns that contain only one non-zero entry
+        for cur_column_name in df.columns:
+            cur_column = df[cur_column_name]
+            cur_column_sum = cur_column.astype(bool).sum()
+            unique_values = cur_column.unique()
+            if len(unique_values) <= 1:
+                df = df.drop(cur_column_name, axis="columns")
+
+        X = df.to_numpy().astype(float)
+        X = X[:1000, :]
+        y = y[:1000]
+        # scale the features to mean 0 and variance 1
+        # X = scale(X)
+
+        return X, y
