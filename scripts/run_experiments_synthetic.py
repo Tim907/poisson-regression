@@ -9,20 +9,10 @@ MAX_SIZE = 40000
 STEP_SIZE = 1000
 NUM_RUNS = 51
 
-logger = get_logger()
-
-#dataset = Synthetic(n=100000, d=10, p=1, variant=1, seed=1)
-#dataset = Synthetic(n=100000, d=10, p=2, variant=1, seed=1)
-#dataset = Synthetic(n=100000, d=10, p=1, variant=2, seed=1)
-#dataset = Synthetic(n=100000, d=10, p=2, variant=2, seed=1)
-
-dataset = Synthetic(n=100000, d=6, p=1, variant=1, seed=2)
+#dataset = Synthetic(n=100000, d=6, p=1, variant=1, seed=2)
 #dataset = Synthetic(n=100000, d=6, p=2, variant=1, seed=2)
 #dataset = Synthetic(n=100000, d=6, p=1, variant=2, seed=2)
-#dataset = Synthetic(n=100000, d=6, p=2, variant=2, seed=2)
-
-#dataset = Diabetes(p=1, use_caching=False)
-
+dataset = Synthetic(n=100000, d=6, p=2, variant=2, seed=2)
 
 run_experiments(dataset, min_size=MIN_SIZE, max_size=MAX_SIZE, step_size=STEP_SIZE, num_runs=NUM_RUNS)
 

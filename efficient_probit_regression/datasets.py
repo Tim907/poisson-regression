@@ -106,13 +106,13 @@ class BaseDataset(abc.ABC):
             return beta_opt
 
         beta_opt_path = self.get_binary_path_beta_opt(p)
-        if beta_opt_path.exists():
-            _logger.info(
-                f"Loading cached version of beta_opt for p={p} found at {beta_opt_path}..."  # noqa
-            )
-            beta_opt = np.load(beta_opt_path)
-            _logger.info("Done.")
-            return beta_opt
+        # if beta_opt_path.exists():
+        #     _logger.info(
+        #         f"Loading cached version of beta_opt for p={p} found at {beta_opt_path}..."  # noqa
+        #     )
+        #     beta_opt = np.load(beta_opt_path)
+        #     _logger.info("Done.")
+        #     return beta_opt
 
         _logger.info(f"Computing beta_opt for p={p}...")
         beta_opt = self._compute_beta_opt(p)
@@ -701,8 +701,7 @@ class Diabetes(BaseDataset):
                 df = df.drop(cur_column_name, axis="columns")
 
         X = df.to_numpy().astype(float)
-        X = X[:1000, :]
-        y = y[:1000]
+
         # scale the features to mean 0 and variance 1
         # X = scale(X)
 

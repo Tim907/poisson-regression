@@ -2,6 +2,7 @@ import warnings
 
 import numpy as np
 import scipy
+import statsmodels.api as sm
 from scipy.optimize import minimize
 from scipy.stats import gennorm
 from scipy.special import gammaln
@@ -220,8 +221,6 @@ class PoissonModel:
         self._check_params(params)
         xbeta = np.matmul(self.X, params)
         if np.any(xbeta <= self.epsilon):
-            #return 10e8 - np.min(xbeta - self.epsilon)
-            #return np.finfo(np.float32).max - np.finfo(np.float32).eps
             return np.inf
         xbetap = xbeta**self.p
         return np.sum(self.w * (xbetap - self.y * np.log(xbetap) + scipy.special.gammaln(self.y + 1)))
@@ -231,12 +230,9 @@ class PoissonModel:
         xbeta = np.matmul(self.X, params)
         if np.any(xbeta <= self.epsilon):
             temp = np.zeros(params.size)
-            #temp[0] = np.min(xbeta) - self.epsilon - np.finfo(np.float32).eps
             temp[0] = -1
             return temp
         return np.matmul((self.w[:, np.newaxis] * self.X).transpose(), (self.p * xbeta**(self.p-1) - self.p * self.y / xbeta))
-
-
 
     def fit(self):
         """Fits a model."""
@@ -252,17 +248,34 @@ class PoissonModel:
         x0 = np.zeros(self.X.shape[1])
         x0[0] = 1 # would happen after first iteration anyway
 
-        results = minimize(fun=fun, x0=x0, jac=jac, method="BFGS", options={'gtol': 1e-05, 'maxiter': 30000, "disp": True})
+        #results = minimize(fun=fun, x0=x0, jac=jac, method="BFGS", options={'gtol': 1e-05, 'maxiter': 30000, "disp": True, "return_all": True})
+        #results2 = minimize(fun=fun, x0=x0, jac=jac2, method="BFGS", options={'gtol': 1e-05, 'maxiter': 30000, "disp": True, "return_all": True})
+        #results3 = minimize(fun=fun, x0=x0, jac=jac3, method="BFGS", options={'gtol': 1e-05, 'maxiter': 30000, "disp": True, "return_all": True})
+        #results4 = minimize(fun=fun, x0=x0, method="Nelder-Mead", options={'gtol': 1e-05, 'maxiter': 30000, "disp": True, "return_all": True})
 
+        family = sm.families.Poisson(link=sm.families.links.Identity())
+        if self.p == 2:
+            family = sm.families.Poisson(link=sm.families.links.Sqrt())
+        results = sm.GLM(self.y, self.X, freq_weights=self.w, family=family).fit()
+        params = results.params
+        #print(fun(results5.params) / results.fun)
+        #print(fun(results5.params) / results2.fun)
+        #print(fun(results5.params) / results3.fun)
+        #print(fun(results5.params) / results4.fun)
 
-        if not results.success:
-            warnings.warn(f"The solver didn't converge! Message: {results.message}")
-        if results.nit <= 3:
-            warnings.warn("Very few iterations in optimization!")
-        if self.X.dot(results.x).min() <= self.epsilon:
+        #np.savetxt('matrix_and_vector.csv', np.hstack((self.y[:, np.newaxis], self.w[:, np.newaxis], self.X)), delimiter=',', fmt='%.12f')
+
+        # if not results.success:
+        #     warnings.warn(f"The solver didn't converge! Message: {results.message}")
+        nor = np.linalg.norm(jac(params), ord=2)
+        if nor > 1:
+            warnings.warn(f"Norm of final gradient was {nor}!")
+        # if results.nit <= 3:
+        #     warnings.warn("Very few iterations in optimization!")
+        if self.X.dot(params).min() <= self.epsilon:
             raise ValueError(f"X * beta was not greater than epsilon!")
 
-        self._params = results.x
+        self._params = params
 
     def get_params(self):
         """ Returns the estimated parameters."""
