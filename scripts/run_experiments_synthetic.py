@@ -12,7 +12,12 @@ NUM_RUNS = 51
 #dataset = Synthetic(n=100000, d=6, p=1, variant=1, seed=2)
 #dataset = Synthetic(n=100000, d=6, p=2, variant=1, seed=2)
 #dataset = Synthetic(n=100000, d=6, p=1, variant=2, seed=2)
-dataset = Synthetic(n=100000, d=6, p=2, variant=2, seed=2)
+#dataset = Synthetic(n=100000, d=6, p=2, variant=2, seed=2)
+
+MIN_SIZE = 500
+MAX_SIZE = 5000
+STEP_SIZE = 100
+dataset = Synthetic(n=100000, d=6, p=1, variant=1, seed=3)
 
 run_experiments(dataset, min_size=MIN_SIZE, max_size=MAX_SIZE, step_size=STEP_SIZE, num_runs=NUM_RUNS)
 

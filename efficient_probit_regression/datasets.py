@@ -494,20 +494,6 @@ class Synthetic(BaseDataset):
 
     def load_X_y(self):
         """ Loads data and returns X and y."""
-
-        X_path = self.cache_dir / f"{self.get_name()}_X.npy"
-        y_path = self.cache_dir / f"{self.get_name()}_y.npy"
-        inHull_path = self.cache_dir / f"{self.get_name()}_inHull.npy"
-        if X_path.exists() and y_path.exists() and inHull_path.exists():
-            _logger.info(
-                f"Loading cached versions of X, y and inHull found at {X_path} and {y_path} and {inHull_path}..."
-            )
-            X = np.load(X_path)
-            y = np.load(y_path)
-            self.inHull = np.load(inHull_path)
-            _logger.info("Done.")
-            return X, y
-
         n = self.n
         d = self.d
         p = self.p
@@ -526,7 +512,7 @@ class Synthetic(BaseDataset):
         mat = mat[0:n, :]
 
         delta = 0.1
-        Z = mat + delta * np.random.standard_normal(size=(n, d))
+        Z = mat# + delta * np.random.standard_normal(size=(n, d))
         X = np.hstack((np.ones((n, 1)), Z))
 
         beta_snake = np.random.standard_normal((d, 1))
@@ -542,11 +528,6 @@ class Synthetic(BaseDataset):
             logic = np.random.choice((False, True), n)
             y = np.ceil(lambdas)
             y[logic] = np.floor(lambdas)[logic]
-
-        np.save(X_path, X)
-        np.save(y_path, y)
-        self.inHull = find_convex_hull(X)
-        np.save(inHull_path, self.inHull)
 
         return X, y
 

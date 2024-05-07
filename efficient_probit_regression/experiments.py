@@ -122,6 +122,10 @@ class BaseExperiment(abc.ABC):
             cur_beta_opt = self.optimize(X=X_reduced, y=y_reduced, w=weights)
             total_time = perf_counter() - start_time
 
+            xbeta = self.dataset.get_X().dot(cur_beta_opt)
+            if xbeta.min() < 0:
+                _logger.info(f"xbeta of cur_beta_opt was < 0! xbeta was {xbeta}")
+
             if cur_beta_opt is not None:
                 cur_ratio = objective_function(cur_beta_opt) / f_opt
             else:
@@ -673,8 +677,7 @@ class LeverageScoreSamplingConvexHullExperiment(BaseExperiment):
         if size < np.invert(self.dataset.inHull).sum():
             raise ValueError("There are more points on the convex hull than sketch size.")
 
-        leverage_scores = self.compute_leverage_scores(X, p=self.p, fast_approx=True)
-        leverage_scores = leverage_scores[self.dataset.inHull]
+        leverage_scores = self.compute_leverage_scores(X[self.dataset.inHull, :], p=self.p, fast_approx=True)
 
         leverage_scores = leverage_scores / np.sum(leverage_scores)
         # augmented
@@ -684,9 +687,9 @@ class LeverageScoreSamplingConvexHullExperiment(BaseExperiment):
         prob = leverage_scores / np.sum(leverage_scores)
         w = 1 / (prob * size)
         w[w < 1] = 1
-        # On-hull points get mean weight
-        weights = np.ones(X.shape[0]) * np.mean(w)
+        weights = np.ones(X.shape[0]) # on-Hull points get weight 1
         weights[self.dataset.inHull] = w
+
         sample_indices = np.random.choice(leverage_scores.size, size=size - np.invert(self.dataset.inHull).sum(), replace=False, p=prob)
         sample_logic = np.invert(self.dataset.inHull)
         sample_logic[np.argwhere(self.dataset.inHull)[sample_indices]] = True
