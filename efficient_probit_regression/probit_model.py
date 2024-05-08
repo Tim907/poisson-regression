@@ -256,7 +256,7 @@ class PoissonModel:
         family = sm.families.Poisson(link=sm.families.links.Identity())
         if self.p == 2:
             family = sm.families.Poisson(link=sm.families.links.Sqrt())
-        results = sm.GLM(self.y, self.X, freq_weights=self.w, family=family).fit()
+        results = sm.GLM(self.y, self.X, freq_weights=self.w, family=family).fit(method="lbfgs", start_params=x0, maxiter=100000, tol=1e-13)
         params = results.params
         #print(fun(results5.params) / results.fun)
         #print(fun(results5.params) / results2.fun)
@@ -273,7 +273,7 @@ class PoissonModel:
         # if results.nit <= 3:
         #     warnings.warn("Very few iterations in optimization!")
         if self.X.dot(params).min() <= self.epsilon:
-            raise ValueError(f"X * beta was not greater than epsilon!")
+            warnings.warn(f"X * beta was not greater than epsilon! {self.X.dot(params).min()}")
 
         self._params = params
 

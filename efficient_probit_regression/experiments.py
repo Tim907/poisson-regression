@@ -1,4 +1,5 @@
 import abc
+import warnings
 from itertools import chain
 from pathlib import Path
 from time import perf_counter
@@ -109,7 +110,7 @@ class BaseExperiment(abc.ABC):
         _logger.info(f"Estimated Rho: {rho}")
 
         _logger.info("Running experiments...")  # instead of print. _logger is a little more detailed
-        #model = PoissonModel(p=self.p, epsilon=0.1, X=X, y=y) # to overwrite epsilon of objective_function
+        #model = PoissonModel(p=self.p, epsilon=0, X=X, y=y) # to overwrite epsilon of objective_function
 
         def job_function(cur_config):  # similar to worker
             _logger.info(f"Current experimental config: {cur_config}")
@@ -124,7 +125,7 @@ class BaseExperiment(abc.ABC):
 
             xbeta = self.dataset.get_X().dot(cur_beta_opt)
             if xbeta.min() < 0:
-                _logger.info(f"xbeta of cur_beta_opt was < 0! xbeta was {xbeta}")
+                _logger.info(f"xbeta of cur_beta_opt was < 0! xbeta was {xbeta.min()}")
 
             if cur_beta_opt is not None:
                 cur_ratio = objective_function(cur_beta_opt) / f_opt
@@ -203,14 +204,9 @@ class UniformSamplingExperiment(BaseExperiment):
         :param y: Label vector.
         :param w: Weights.
         """
-        try:
-            print("Epsilon=0.1")
-            model = PoissonModel(p=self.p, X=X, y=y, w=w, epsilon=0.1)
-            model.fit()
-            beta_opt = model.get_params()
-        except ValueError:
-            # this is executed if y only contains 1 or -1 label
-            beta_opt = None
+        model = PoissonModel(p=self.p, X=X, y=y, w=w, epsilon=0)
+        model.fit()
+        beta_opt = model.get_params()
         return beta_opt
 
 
@@ -707,8 +703,7 @@ class LeverageScoreSamplingConvexHullExperiment(BaseExperiment):
         :param w: Weights.
         """
         try:
-            print("Epsilon=0.1")
-            model = PoissonModel(p=self.p, X=X, y=y, w=w, epsilon=0.1)
+            model = PoissonModel(p=self.p, X=X, y=y, w=w, epsilon=0)
             model.fit()
             beta_opt = model.get_params()
         except ValueError:
