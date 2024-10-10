@@ -80,8 +80,11 @@ class BaseDataset(abc.ABC):
         _logger.info("Done.")
         np.save(X_path, X)
         np.save(y_path, y)
-        self.inHull = find_convex_hull(X)
-        np.save(inHull_path, self.inHull)
+
+        if type(self) is not SyntheticSimplexGaussian:
+            self.inHull = find_convex_hull(X)
+            np.save(inHull_path, self.inHull)
+
         _logger.info(f"Saved X, y and inHull at {X_path}, {y_path} and {inHull_path}.")
 
         if self.add_intercept:
@@ -513,7 +516,7 @@ class Synthetic(BaseDataset):
 
         delta = 0.1
         Z = mat# + delta * np.random.standard_normal(size=(n, d))
-        X = np.hstack((np.ones((n, 1)), Z))
+        X = np.hstack((np.ones((n, 1)), Z)) # add intercept
 
         beta_snake = np.random.standard_normal((d, 1))
         b = np.max((1, 1.1 * np.abs(np.min(np.matmul(Z, beta_snake)))))
@@ -685,5 +688,67 @@ class Diabetes(BaseDataset):
 
         # scale the features to mean 0 and variance 1
         # X = scale(X)
+
+        return X, y
+
+
+class SyntheticSimplexGaussian(BaseDataset):
+    def __init__(self, n, d, p, variant, seed, use_caching=True):
+        super().__init__(p=p, add_intercept=False, use_caching=use_caching)
+        self.n = n
+        self.d = d
+        self.seed = seed
+        if variant != 1 and variant != 2:
+            raise ValueError("Variant should be one of {1, 2}.")
+        self.variant = variant
+
+    def get_name(self):
+        """" Returns name of data set."""
+        return f"syntheticSimplexGaussian_n{self.n}_d{self.d}_p{self.p}_variant{self.variant}_seed{self.seed}"
+
+    def get_raw_path(self):
+        return self.cache_dir / f"{self.get_name()}.csv"
+
+    def load_X_y(self):
+        """Loads data and returns X and y."""
+        n = self.n  # number of points
+        d = self.d  # dimensionality
+        p = self.p  # Exponent für die Berechnung von lambdas
+        np.random.seed(self.seed)
+
+        # 1. build Simplex-points: nullvector and standard basis vectors
+        simplex_points = np.vstack([np.zeros(6), np.eye(6)])
+
+        # 2. generate n-7 Gauss-points, shift and scale
+        l1_limit = 0.99  # L_1-Norm-boundary
+        gaussian_points = np.random.normal(loc=0, scale=1.0, size=(n - 7, 6))  # standard gaussian
+        gaussian_points = gaussian_points - gaussian_points.min()  # shift to non-negative numbers
+        # make L_1-Norm < 1
+        norms = np.linalg.norm(gaussian_points, ord=1, axis=1)
+        gaussian_points = gaussian_points * (l1_limit / norms.max())
+
+        # 3. create final points
+        Z = np.vstack([simplex_points, gaussian_points])
+        X = np.hstack((np.ones((n, 1)), Z))  # add intercept
+
+        # 4. save convex hull
+        inHull_path = self.cache_dir / f"{self.get_name()}_inHull.npy"
+        self.inHull = np.hstack((np.repeat(False, 7), np.repeat(True, n - 7)))
+        np.save(inHull_path, self.inHull)
+
+        # 4. beta coefficients
+        beta_snake = np.random.standard_normal((d, 1))
+        b = np.max((1, 1.1 * np.abs(np.min(np.matmul(Z, beta_snake)))))
+        beta = np.vstack([b, beta_snake])
+
+        # 5. Synthetic variant 1
+        lambdas = (np.matmul(X, beta) ** p).reshape(n)
+        y = np.random.poisson(lambdas)
+
+        # 6. Synthetic variant 2
+        if self.variant == 2:
+            logic = np.random.choice((False, True), n)
+            y = np.ceil(lambdas)
+            y[logic] = np.floor(lambdas)[logic]
 
         return X, y
