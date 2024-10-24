@@ -742,7 +742,7 @@ class SyntheticSimplexGaussian(BaseDataset):
         beta = np.vstack([b, beta_snake])
 
         # 5. Synthetic variant 1
-        lambdas = (np.matmul(X, beta) ** p).reshape(n)
+        lambdas = 10 * (np.matmul(X, beta) ** p).reshape(n)
         y = np.random.poisson(lambdas)
 
         # 6. Synthetic variant 2
