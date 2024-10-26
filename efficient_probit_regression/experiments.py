@@ -619,7 +619,7 @@ class LeverageScoreSamplingConvexHullExperiment(BaseExperiment):
         n, d = X.shape
 
         if p <= 2:
-            sketch_size = d ** 2
+            sketch_size = np.minimum(2000, d ** 2)
         else:
             sketch_size = np.maximum(d ** 2, int(np.power(n, 1 - 2 / p)))
 

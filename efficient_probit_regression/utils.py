@@ -21,7 +21,7 @@ def run_experiments(dataset: BaseDataset, min_size, max_size, step_size, num_run
         dataset=dataset,
         results_filename=settings.get_results_dir_p(dataset.p) / f"{dataset.get_name()}_leverage.csv",
     )
-    #experiment.run(parallel=True)
+    experiment.run(parallel=False)
 
     _logger.info("Starting uniform sampling experiment")
     experiment_uniform = UniformSamplingExperiment(

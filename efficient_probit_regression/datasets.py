@@ -737,12 +737,12 @@ class SyntheticSimplexGaussian(BaseDataset):
         np.save(inHull_path, self.inHull)
 
         # 4. beta coefficients
-        beta_snake = np.random.standard_normal((d, 1))
-        b = np.max((1, 1.1 * np.abs(np.min(np.matmul(Z, beta_snake)))))
+        beta_snake = 10 * np.random.standard_normal((d, 1))
+        b = np.max((1, 2 * np.abs(np.min(np.matmul(Z, beta_snake)))))
         beta = np.vstack([b, beta_snake])
 
         # 5. Synthetic variant 1
-        lambdas = 10 * (np.matmul(X, beta) ** p).reshape(n)
+        lambdas = (np.matmul(X, beta) ** p).reshape(n)
         y = np.random.poisson(lambdas)
 
         # 6. Synthetic variant 2
