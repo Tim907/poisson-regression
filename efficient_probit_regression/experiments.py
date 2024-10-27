@@ -153,11 +153,11 @@ class BaseExperiment(abc.ABC):
         df = pd.DataFrame(results)
 
         # check if a file already exits   (saving results independently)
-        if Path(self.results_filename).exists():
-            df_existing = pd.read_csv(self.results_filename)
-            max_run = df_existing["run"].max()
-            df["run"] = df["run"] + max_run
-            df = pd.concat([df_existing, df], ignore_index=True)
+        # if Path(self.results_filename).exists():
+        #     df_existing = pd.read_csv(self.results_filename)
+        #     max_run = df_existing["run"].max()
+        #     df["run"] = df["run"] + max_run
+        #     df = pd.concat([df_existing, df], ignore_index=True)
 
         df.to_csv(self.results_filename, index=False)
 

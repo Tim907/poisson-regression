@@ -256,8 +256,22 @@ class PoissonModel:
         family = sm.families.Poisson(link=sm.families.links.Identity())
         if self.p == 2:
             family = sm.families.Poisson(link=sm.families.links.Sqrt())
-        results = sm.GLM(self.y, self.X, freq_weights=self.w, family=family).fit(method="lbfgs", start_params=x0, maxiter=100000, tol=1e-13)
-        params = results.params
+
+        # Define callback function to capture parameters
+
+        model = sm.GLM(self.y, self.X, freq_weights=self.w, family=family)
+        param_history = []
+        objective_history = []
+        def callback(params):
+            param_history.append(params.copy())
+            objective_history.append(fun(params))
+
+        results = model.fit(method="lbfgs", start_params=x0, maxiter=100000, tol=1e-13, callback=callback)
+        #params = results.params
+
+        # Take the last feasible solution that minimizes the loss
+        params = param_history[np.nanargmin(objective_history)]
+
         #print(fun(results5.params) / results.fun)
         #print(fun(results5.params) / results2.fun)
         #print(fun(results5.params) / results3.fun)
