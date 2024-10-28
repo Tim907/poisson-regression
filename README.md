@@ -9,8 +9,8 @@ This is the accompanying code repository for the **NeurIPS 2024** publication **
 1. Clone the repository and navigate into the new directory
 
    ```bash
-   git clone https://github.com/Tim907/turnstile-sampling
-   cd turnstile-sampling
+   git clone https://github.com/Tim907/poisson-regression
+   cd poisson-regression
    ```
 
 2. Create and activate a new virtual environment
@@ -47,7 +47,7 @@ Just make sure, that everything is installed properly.
 For example, to run the covertype experiments you can use the following command:
 
 ```bash
-python scripts/run_experiments_covertype.py
+python scripts/run_experiments_synthetic.py
 ```
 
 ## How to recreate the plots
