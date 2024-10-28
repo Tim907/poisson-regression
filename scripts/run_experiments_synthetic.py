@@ -1,17 +1,10 @@
-from efficient_poisson_regression import settings
 from efficient_poisson_regression.datasets import Synthetic, Covertype, OnlineRetail, Diabetes, SyntheticSimplexGaussian
-from efficient_poisson_regression.experiments import LeverageScoreSamplingConvexHullExperiment
-from efficient_poisson_regression.settings import get_logger
 from efficient_poisson_regression.utils import run_experiments
 
 MIN_SIZE = 15000
 MAX_SIZE = 40000
 STEP_SIZE = 1000
 NUM_RUNS = 201
-#dataset = Synthetic(n=100000, d=6, p=1, variant=1, seed=2)
-#dataset = Synthetic(n=100000, d=6, p=2, variant=1, seed=2)
-#dataset = Synthetic(n=100000, d=6, p=1, variant=2, seed=2)
-#dataset = Synthetic(n=100000, d=6, p=2, variant=2, seed=2)
 
 MIN_SIZE = 50
 MAX_SIZE = 600
