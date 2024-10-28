@@ -1,6 +1,6 @@
-from efficient_probit_regression import settings
-from efficient_probit_regression.datasets import Covertype, KDDCup, Webspam  # noqa
-from efficient_probit_regression.experiments import LeverageScoreSamplingExperiment
+from efficient_poisson_regression import settings
+from efficient_poisson_regression.datasets import Covertype, KDDCup, Webspam  # noqa
+from efficient_poisson_regression.experiments import LeverageScoreSamplingExperiment
 
 logger = settings.get_logger()
 

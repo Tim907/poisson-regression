@@ -8,8 +8,8 @@ from numpy.testing import assert_allclose
 from sklearn.datasets import load_iris, make_classification
 from statsmodels.discrete.discrete_model import Probit as Probit_statsmodels
 
-from efficient_probit_regression import ProbitModel
-from efficient_probit_regression.probit_model import ProbitSGD
+from efficient_poisson_regression import ProbitModel
+from efficient_poisson_regression.probit_model import ProbitSGD
 
 X = np.array([[1, 2], [3, 4]])
 y = np.array([1, -1])

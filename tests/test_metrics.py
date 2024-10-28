@@ -2,7 +2,7 @@ import numpy as np
 import pytest
 from scipy.stats import multivariate_normal
 
-from efficient_probit_regression.metrics import gaussian_kernel, mmd, polynomial_kernel
+from efficient_poisson_regression.metrics import gaussian_kernel, mmd, polynomial_kernel
 
 
 @pytest.mark.parametrize("kernel_function", [gaussian_kernel, polynomial_kernel])

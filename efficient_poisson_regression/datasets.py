@@ -18,8 +18,8 @@ from sklearn.datasets import (
 )
 from sklearn.preprocessing import scale
 
-from efficient_probit_regression import settings
-from efficient_probit_regression.probit_model import PoissonModel
+from efficient_poisson_regression import settings
+from efficient_poisson_regression.probit_model import PoissonModel
 
 _logger = settings.get_logger()
 

@@ -1,7 +1,7 @@
 import numpy as np
 from numpy.testing import assert_array_almost_equal, assert_array_equal
 
-from efficient_probit_regression.datasets import BaseDataset
+from efficient_poisson_regression.datasets import BaseDataset
 
 X = np.array([[1, 0], [0.1, 1], [-0.1, 1], [-1, 0], [0, -1]])
 X_intercept = np.array([[1, 0, 1], [0.1, 1, 1], [-0.1, 1, 1], [-1, 0, 1], [0, -1, 1]])

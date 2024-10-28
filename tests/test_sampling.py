@@ -3,8 +3,8 @@ import pytest
 from numpy.testing import assert_allclose, assert_array_equal
 from sklearn.datasets import load_iris
 
-from efficient_probit_regression import leverage_score_sampling, uniform_sampling
-from efficient_probit_regression.sampling import (
+from efficient_poisson_regression import leverage_score_sampling, uniform_sampling
+from efficient_poisson_regression.sampling import (
     ReservoirSampler,
     _round_up,
     compute_leverage_scores,

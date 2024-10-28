@@ -1,10 +1,10 @@
 import numpy as np
 
-from efficient_probit_regression.datasets import Covertype, KDDCup, Webspam  # noqa
-from efficient_probit_regression.experiments import (
+from efficient_poisson_regression.datasets import Covertype, KDDCup, Webspam  # noqa
+from efficient_poisson_regression.experiments import (
     OnlineLeverageScoreSamplingExperimentBayes,
 )
-from efficient_probit_regression.settings import get_logger
+from efficient_poisson_regression.settings import get_logger
 
 logger = get_logger()
 

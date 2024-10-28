@@ -3,8 +3,8 @@ import pandas as pd
 import pytest
 from numpy.testing import assert_array_equal
 
-from efficient_probit_regression.datasets import BaseDataset, Iris
-from efficient_probit_regression.experiments import (
+from efficient_poisson_regression.datasets import BaseDataset, Iris
+from efficient_poisson_regression.experiments import (
     LeverageScoreSamplingExperiment,
     LeverageScoreSamplingExperimentBayes,
     LewisSamplingExperiment,

@@ -1,7 +1,7 @@
 import numpy as np
 from scipy.sparse import diags
 
-from efficient_probit_regression.sampling import fast_QR
+from efficient_poisson_regression.sampling import fast_QR
 
 
 def _calculate_lev_score_exact(X):

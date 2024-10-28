@@ -1,5 +1,5 @@
-from efficient_probit_regression.datasets import Iris
-from efficient_probit_regression.lewis_sampling import lewis_sampling
+from efficient_poisson_regression.datasets import Iris
+from efficient_poisson_regression.lewis_sampling import lewis_sampling
 
 
 def test_lewis_iris():

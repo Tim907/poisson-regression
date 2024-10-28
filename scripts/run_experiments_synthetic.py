@@ -1,8 +1,8 @@
-from efficient_probit_regression import settings
-from efficient_probit_regression.datasets import Synthetic, Covertype, OnlineRetail, Diabetes, SyntheticSimplexGaussian
-from efficient_probit_regression.experiments import LeverageScoreSamplingConvexHullExperiment
-from efficient_probit_regression.settings import get_logger
-from efficient_probit_regression.utils import run_experiments
+from efficient_poisson_regression import settings
+from efficient_poisson_regression.datasets import Synthetic, Covertype, OnlineRetail, Diabetes, SyntheticSimplexGaussian
+from efficient_poisson_regression.experiments import LeverageScoreSamplingConvexHullExperiment
+from efficient_poisson_regression.settings import get_logger
+from efficient_poisson_regression.utils import run_experiments
 
 MIN_SIZE = 15000
 MAX_SIZE = 40000
