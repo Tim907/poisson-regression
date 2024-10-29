@@ -1,11 +1,7 @@
 from efficient_poisson_regression.datasets import Synthetic, Covertype, OnlineRetail, Diabetes, SyntheticSimplexGaussian
 from efficient_poisson_regression.utils import run_experiments
 
-MIN_SIZE = 15000
-MAX_SIZE = 40000
-STEP_SIZE = 1000
 NUM_RUNS = 201
-
 MIN_SIZE = 50
 MAX_SIZE = 600
 STEP_SIZE = 50
