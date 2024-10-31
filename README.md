@@ -1,4 +1,4 @@
-# Turnstile Sampling
+# Subsampling for Poisson regression
 
 [![python-version](https://img.shields.io/badge/python-3.8%20%7C%203.9-blue)](https://img.shields.io/badge/python-3.8%20%7C%203.9-blue)
 
